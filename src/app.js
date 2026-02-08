@@ -1,0 +1,1 @@
+// setting up, initializing, and defining the behavior of an Express application instance before it begins handling server requests.
