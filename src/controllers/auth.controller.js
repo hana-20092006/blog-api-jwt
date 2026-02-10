@@ -2,7 +2,8 @@
 
 import User from "../models/User.js"; // User → the manager you created earlier
 import bcrypt from "bcrypt";
-import { generateToken } from "../utils/token.js";
+import { generateAccessToken, generateRefreshToken } from "../utils/token.js";
+import jwt from "jsonwebtoken";
 
 // “If someone hits the register endpoint, just reply.”
 export const registerUser = async (req,res) => {
@@ -49,14 +50,86 @@ export const loginUser = async (req, res) => {
             });
         }
 
-        // 3> Successful login
-        const token = generateToken(user._id);
+        // 3. Generate tokens
+        const accessToken = generateAccessToken(user._id);
+        const refreshToken = generateRefreshToken(user._id);
+
+        // Save refresh token to DB
+        user.refreshToken = refreshToken;
+        await user.save();
+
         res.json({
-            message: "Login successful", token
+            message: "Login successful", accessToken, refreshToken
         });
     } catch (error) {
         res.status(500).json({
             error: error.message
+        });
+    }
+};
+
+// Not protected by It’s not protected by authMiddleware
+// because: the access token is already expired
+// we rely on the refresh token instead
+export const refreshAccessToken = async (req, res) => {
+    try {
+        const { refreshToken } = req.body;
+
+        // If you didn’t send a refresh token, I can’t help you.
+        if (!refreshToken) {
+            return res.status(401).json({
+                message: "Refresh token required"
+            });
+        }
+
+        const user = await User.findOne({ refreshToken });
+        if (!user) {
+            return res.status(403).json({
+                message: "Invalid refresh token"
+            });
+        }
+
+        // this checks token signature, expiry, integrity
+        jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, 
+            (err, decoded) => {
+                if (err) {
+                    return res.status(403).json({
+                        message: "Invalid refresh token" 
+                    });
+                }
+                const newAccessToken = generateAccessToken(user._id);
+
+                res.json({
+                    accessToken: newAccessToken
+                });
+            }
+
+        );
+    }
+    catch(error){
+        res.status(500).json({
+            message: error.message
+        });
+    }
+};
+
+// revoke the refresh token
+export const logoutUser = async (req, res) => {
+    try {
+        const { refreshToken } = req.body;
+
+        const user = await User.findOne({ refreshToken});
+        if (user){
+            user.refreshToken = null;
+            await user.save();
+        }
+
+        res.json({
+            message: "Logged out successfully"
+        });
+    } catch (error){
+        res.status(500).json({
+            message: error.message
         });
     }
 };

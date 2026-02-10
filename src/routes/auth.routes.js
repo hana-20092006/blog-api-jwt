@@ -1,5 +1,5 @@
 import express from "express";
-import { registerUser, loginUser } from "../controllers/auth.controller.js";
+import { registerUser, loginUser, refreshAccessToken, logoutUser } from "../controllers/auth.controller.js";
 import authMiddleware from "../middleware/auth.middleware.js";
 
 // Create a door called /register
@@ -17,4 +17,7 @@ router.get("/profile", authMiddleware, (req, res) => { // Create a route called 
         user: req.user
     });
 });
+
+router.post("/refresh", refreshAccessToken);
+router.post("/logout", logoutUser);
 export default router;
