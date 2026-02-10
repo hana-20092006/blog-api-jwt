@@ -4,6 +4,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import authRoute from './routes/auth.routes.js';
+import postRoutes from './routes/post.routes.js';
 
 const app = express();
 
@@ -12,6 +13,7 @@ app.use(cors());
 app.use(helmet());
 
 app.use("/auth", authRoute); // If someone knocks on the /auth door, show them the authRoute router.
+app.use("/posts", postRoutes); // If someone knocks on the /posts door, show them the postRoutes router.
 
 app.get('/', (req,res) => {
     res.json({
