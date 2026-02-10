@@ -219,7 +219,7 @@ Contributions, issues, and feature requests are welcome!
 
 ## 👤 Author
 
-*Hana Maria Philip*
+Hana Maria Philip
 ---
 
 ## ⭐ Show your support
