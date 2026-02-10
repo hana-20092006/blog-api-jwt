@@ -219,11 +219,7 @@ Contributions, issues, and feature requests are welcome!
 
 ## 👤 Author
 
-**Your Name**
-
-- GitHub: [@your-username](https://github.com/your-username)
-- LinkedIn: [Your LinkedIn](https://linkedin.com/in/your-profile)
-
+**Hana Maria Philip**
 ---
 
 ## ⭐ Show your support
