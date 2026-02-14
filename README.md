@@ -375,15 +375,6 @@ Second Year CSE Student | Learning Backend Development
 
 Connect with me:
 - GitHub: [@hana-20092006](https://github.com/hana-20092006)
-- LinkedIn: [Your LinkedIn] (optional)
-
----
-
-## 📚 Learning Journey
-
-This project is part of my **Week 1-2** learning from a structured 3-month backend development roadmap, focusing on:
-- Week 1: JWT Authentication & Security
-- Week 2: Input Validation & Error Handling (In Progress)
 
 ---
 
