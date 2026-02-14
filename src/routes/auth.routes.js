@@ -1,14 +1,16 @@
 import express from "express";
 import { registerUser, loginUser, refreshAccessToken, logoutUser } from "../controllers/auth.controller.js";
 import authMiddleware from "../middleware/auth.middleware.js";
+import { registerValidation, loginValidation } from  "../validators/auth.validator.js";
+import validate from "../middleware/validation.middleware.js";
 
 // Create a door called /register
 // When someone knocks, call registerUser
 
 const router = express.Router(); // Create a mini Express app whose only job is to handle routes.
 
-router.post("/register", registerUser);
-router.post("/login", loginUser);
+router.post("/register", registerValidation, validate, registerUser);
+router.post("/login", loginValidation, validate, loginUser);
 
 // router.get(path, middleware, handler) , handler runs only if middleware allows
 router.get("/profile", authMiddleware, (req, res) => { // Create a route called /profile, only allow access if the user is authenticated.
