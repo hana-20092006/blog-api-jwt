@@ -1,6 +1,7 @@
 import Post from "../models/Post.js";
+import AppError from "../utils/AppError.js";
 
-export const createPost = async (req, res) => {
+export const createPost = async (req, res, next) => {
     try {
         const {title, content } = req.body;
 
@@ -13,37 +14,31 @@ export const createPost = async (req, res) => {
             message: "Post created successfully", post
         });
     } catch (error) {
-        res.status(500).json({
-            message: error.message
-        });
+        next(error);
     }
 };
 
-export const getAllPosts = async (req, res) => {
+export const getAllPosts = async (req, res, next) => {
     try {
         // populate() → replaces author ID with user info
         const posts = await Post.find().populate("author", "name email");
 
         res.json(posts);
     } catch(error) {
-        res.status(500).json({
-            message: error.message
-        });
+        next(error);
     }
 };
-export const getMyPosts = async (req, res) => {
+export const getMyPosts = async (req, res, next) => {
     try {
         const posts = await Post.find({ 
             author: req.user.id // come from JWT middlewatr
         });
         res.json(posts);       
     } catch (error){
-            res.json(500).json({
-                message: error.message
-        });
+           next(error);
     }
 };
-export const updatePost = async (req, res) => {
+export const updatePost = async (req, res, next) => {
     try {
         const { id } = req.params;
         const { title, content } = req.body;
@@ -51,16 +46,12 @@ export const updatePost = async (req, res) => {
         const post = await Post.findById(id);
 
         if (!post) {
-            return res.status(404).json({
-                message: "Post not found"
-            });
+            return next(new AppError('Post not found', 404));
         }
 
         // AUTHORIZATION CHECK ( can this person do the change )
         if (post.author.toString() !== req.user.id) {
-            return res.status(403).json({
-                message: "Not allowed"
-            });
+            return next(new AppError('Not allowed', 403));
         }
 
         post.title = title || post.title;
@@ -74,9 +65,7 @@ export const updatePost = async (req, res) => {
 
     } 
     catch (error) {
-        res.status(500).json({
-            message: "Error updating post", error
-        });
+        next(error);
     }
 };
 
@@ -86,16 +75,12 @@ export const deletePost = async (req,res) => {
         const post = await Post.findById(id);
 
         if (!post) {
-            return res.status(404).json({
-                message: "Post not found"
-            });
+            return next(new AppError('Post not found', 404));
         }
 
         // AUTHORIZATION CHECK 
         if (post.author.toString() !== req.user.id) {
-            return res.status(403).json({
-                message: "Not allowed"
-            });
+            return next(new AppError('Not allowed', 403));
         }
         await post.deleteOne();
 
@@ -104,8 +89,6 @@ export const deletePost = async (req,res) => {
         });
     }
     catch (error) {
-        res.status(500).json({
-            message: "Error deleting post", error
-        });
+        next(error);
     }
 };

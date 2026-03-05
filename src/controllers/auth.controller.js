@@ -4,12 +4,18 @@ import User from "../models/User.js"; // User → the manager you created earlie
 import bcrypt from "bcrypt";
 import { generateAccessToken, generateRefreshToken } from "../utils/token.js";
 import jwt from "jsonwebtoken";
+import AppError from "../utils/AppError.js";
 
 // “If someone hits the register endpoint, just reply.”
-export const registerUser = async (req,res) => {
+export const registerUser = async (req,res, next) => {
     try {
         const { name, email, password } = req.body; 
 
+        // Check if user already exists
+        const existingUser = await User.findOne( {email});
+        if (existingUser) {
+            return next(new AppError('Email already registered.',409));
+        }
         // Hash the password
         const hashedPassword = await bcrypt.hash(password, 10);
         // await → Wait till MongoDB finishes saving
@@ -22,32 +28,25 @@ export const registerUser = async (req,res) => {
             message: "User registered successfully", user
         });
     } catch(error) {
-        res.status(500).json({
-            message: "Error registering user", 
-            error: error.message
-        });
+        next(error);
     }
 };
 
-export const loginUser = async (req, res) => {
+export const loginUser = async (req, res, next) => {
     try {
         const { email, password } = req.body;
 
         // 1. Find user by email
         const user = await User.findOne({ email });
         if (!user) {
-            return res.status(400).json({
-                message: "User not found"
-            });
+            return next(new AppError('Invalid email or password', 401));
         }
 
         // 2. Compare password
         const isMatch = await bcrypt.compare(password, user.password);
 
         if (!isMatch) {
-            return res.status(400).json({
-                message: "Invalid credentials"
-            });
+            return next(new AppError('Invalid email or password', 401));
         }
 
         // 3. Generate tokens
@@ -62,40 +61,32 @@ export const loginUser = async (req, res) => {
             message: "Login successful", accessToken, refreshToken
         });
     } catch (error) {
-        res.status(500).json({
-            error: error.message
-        });
+        next(error);
     }
 };
 
 // Not protected by It’s not protected by authMiddleware
 // because: the access token is already expired
 // we rely on the refresh token instead
-export const refreshAccessToken = async (req, res) => {
+export const refreshAccessToken = async (req, res, next) => {
     try {
         const { refreshToken } = req.body;
 
         // If you didn’t send a refresh token, I can’t help you.
         if (!refreshToken) {
-            return res.status(401).json({
-                message: "Refresh token required"
-            });
+            return next(new AppError('Refresh token is required', 401));
         }
 
         const user = await User.findOne({ refreshToken });
         if (!user) {
-            return res.status(403).json({
-                message: "Invalid refresh token"
-            });
+            return next(new AppError('Invalid refresh token', 403));
         }
 
         // this checks token signature, expiry, integrity
         jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, 
             (err, decoded) => {
                 if (err) {
-                    return res.status(403).json({
-                        message: "Invalid refresh token" 
-                    });
+                    return next(new AppError('Invalid refresh token', 403));
                 }
                 const newAccessToken = generateAccessToken(user._id);
 
@@ -107,14 +98,12 @@ export const refreshAccessToken = async (req, res) => {
         );
     }
     catch(error){
-        res.status(500).json({
-            message: error.message
-        });
+        next(error);
     }
 };
 
 // revoke the refresh token
-export const logoutUser = async (req, res) => {
+export const logoutUser = async (req, res, next) => {
     try {
         const { refreshToken } = req.body;
 
@@ -128,8 +117,6 @@ export const logoutUser = async (req, res) => {
             message: "Logged out successfully"
         });
     } catch (error){
-        res.status(500).json({
-            message: error.message
-        });
+        next(error);
     }
 };
