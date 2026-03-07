@@ -69,7 +69,7 @@ export const updatePost = async (req, res, next) => {
     }
 };
 
-export const deletePost = async (req,res) => {
+export const deletePost = async (req, res, next) => {
     try {
         const { id } = req.params;
         const post = await Post.findById(id);

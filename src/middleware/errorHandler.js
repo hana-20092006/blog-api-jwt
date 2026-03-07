@@ -32,6 +32,7 @@ const errorHandler = ( err, req, res, next) => {
     err.statusCode = err.statusCode || 500;
     err.status = err.status || 'error';
 
+    // It creates a copy of the error object because we don't want to modify the original error object.
     let error = { ...err };
     error.message = err.message;
 

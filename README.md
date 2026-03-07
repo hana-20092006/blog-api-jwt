@@ -1,8 +1,8 @@
-# 📝 Blog API with JWT Authentication & Input Validation
+# 📝 Blog API with JWT Authentication, Input Validation & Centralized Error Handling
 
-A production-ready RESTful Blog API built using **Node.js, Express, MongoDB, and JWT**, implementing secure authentication, refresh token–based session management, authorization with ownership checks, and **comprehensive input validation**.
+A production-ready RESTful Blog API built using **Node.js, Express, MongoDB, and JWT**, implementing secure authentication, refresh token–based session management, authorization with ownership checks, **comprehensive input validation**, and **professional error handling**.
 
-This project goes beyond basic login and demonstrates **real-world backend authentication patterns** with **robust error handling and data validation**.
+This project goes beyond basic login and demonstrates **real-world backend patterns** with **robust error handling, data validation, and consistent API responses**.
 
 ---
 
@@ -22,13 +22,27 @@ This project goes beyond basic login and demonstrates **real-world backend authe
 - Ownership-based access control
 - Only post owners can update or delete their posts
 
-### ✅ Input Validation (NEW!)
+### ✅ Input Validation
 - **express-validator** integration
 - Email format validation
 - Password strength requirements (minimum length, must contain numbers)
 - Required field validation
 - Custom error messages for better user experience
 - Pre-processing validation before database operations
+
+### 🚨 Centralized Error Handling (NEW!)
+- **Custom `AppError` class** for operational errors
+- **Global error handler middleware** - one place for all error logic
+- **Automatic error transformations:**
+  - MongoDB duplicate key errors → User-friendly messages
+  - Mongoose validation errors → Clear field-specific messages
+  - Invalid ObjectId → Readable error messages
+  - JWT errors → "Please log in again" messages
+- **Development vs Production modes:**
+  - Development: Detailed error info with stack traces
+  - Production: Clean, secure error messages
+- **Proper HTTP status codes** (400, 401, 403, 404, 409, 500)
+- **Consistent error response format** across all endpoints
 
 ### 📝 Blog Posts
 - Create a post (authenticated users)
@@ -40,9 +54,9 @@ This project goes beyond basic login and demonstrates **real-world backend authe
 ### 🧱 Backend Architecture
 - Clean separation of routes, controllers, middleware, and models
 - MongoDB relationships using ObjectId references
-- Proper HTTP status codes (400, 401, 403, 404, 500)
+- MVC architecture pattern
 - Environment-based configuration
-- Reusable validation middleware
+- Reusable validation and error handling middleware
 
 ---
 
@@ -54,7 +68,7 @@ This project goes beyond basic login and demonstrates **real-world backend authe
 - **Mongoose**
 - **JSON Web Tokens (JWT)**
 - **bcrypt**
-- **express-validator** ⭐ NEW
+- **express-validator**
 - **dotenv**
 - **Postman** (API testing)
 
@@ -73,7 +87,8 @@ src/
 │
 ├── middleware/
 │   ├── auth.middleware.js
-│   └── validators.js          ⭐ NEW
+│   ├── validators.js
+│   └── errorHandler.js        ⭐ NEW
 │
 ├── models/
 │   ├── User.js
@@ -84,7 +99,8 @@ src/
 │   └── post.routes.js
 │
 ├── utils/
-│   └── token.js
+│   ├── token.js
+│   └── AppError.js            ⭐ NEW
 │
 ├── app.js
 └── server.js
@@ -111,6 +127,7 @@ PORT=5000
 MONGODB_URI=your_mongodb_connection_string
 JWT_SECRET=your_access_token_secret
 JWT_REFRESH_SECRET=your_refresh_token_secret
+NODE_ENV=development
 ```
 
 ### 4️⃣ Run the server
@@ -146,7 +163,7 @@ POST /auth/register
 - Email: Valid email format required
 - Password: Minimum 6 characters, must contain at least one number
 
-**Response (Success):**
+**Response (Success - 201):**
 ```json
 {
   "message": "User registered successfully",
@@ -158,7 +175,7 @@ POST /auth/register
 }
 ```
 
-**Response (Validation Error):**
+**Response (Validation Error - 400):**
 ```json
 {
   "errors": [
@@ -171,6 +188,14 @@ POST /auth/register
       "message": "Password must be at least 6 characters"
     }
   ]
+}
+```
+
+**Response (Duplicate Email - 409):**
+```json
+{
+  "status": "fail",
+  "message": "email 'john@example.com' already exists. Please use another value."
 }
 ```
 
@@ -191,11 +216,20 @@ POST /auth/login
 - Email: Valid email format required
 - Password: Required
 
-**Response:**
+**Response (Success - 200):**
 ```json
 {
+  "message": "Login successful",
   "accessToken": "...",
   "refreshToken": "..."
+}
+```
+
+**Response (Invalid Credentials - 401):**
+```json
+{
+  "status": "fail",
+  "message": "Invalid email or password"
 }
 ```
 
@@ -245,6 +279,100 @@ Revokes the refresh token.
 
 ---
 
+## 🚨 Error Handling
+
+### Error Response Format
+
+All errors follow a consistent format for better client-side handling:
+
+**Operational Errors (4xx - Client Errors):**
+```json
+{
+  "status": "fail",
+  "message": "User-friendly error message explaining what went wrong"
+}
+```
+
+**Server Errors (5xx - Server Errors):**
+```json
+{
+  "status": "error",
+  "message": "Something went wrong!"
+}
+```
+
+**Development Mode (Detailed Errors):**
+```json
+{
+  "status": "fail",
+  "error": { /* full error object */ },
+  "message": "User-friendly message",
+  "stack": "Error stack trace for debugging"
+}
+```
+
+### Error Types & Status Codes
+
+| Status Code | Error Type | Example |
+|-------------|------------|---------|
+| **400** | Bad Request | Invalid email format, password too short, invalid ObjectId |
+| **401** | Unauthorized | Wrong password, no token, invalid/expired JWT |
+| **403** | Forbidden | Trying to delete someone else's post |
+| **404** | Not Found | Post doesn't exist, route doesn't exist |
+| **409** | Conflict | Email already registered |
+| **500** | Server Error | Database connection failed, unexpected bugs |
+
+### Automatic Error Transformations
+
+The API automatically transforms technical errors into user-friendly messages:
+
+**MongoDB Duplicate Key Error:**
+```json
+// Raw MongoDB Error: E11000 duplicate key error...
+// Transformed to:
+{
+  "status": "fail",
+  "message": "email 'john@example.com' already exists. Please use another value."
+}
+```
+
+**Mongoose Validation Error:**
+```json
+// Raw: ValidationError: name: Path `name` is required...
+// Transformed to:
+{
+  "status": "fail",
+  "message": "Invalid input data. Name must be at least 2 characters. Please provide a valid email"
+}
+```
+
+**Invalid MongoDB ObjectId:**
+```json
+// Raw: CastError: Cast to ObjectId failed for value "123"
+// Transformed to:
+{
+  "status": "fail",
+  "message": "Invalid _id: 123"
+}
+```
+
+**JWT Errors:**
+```json
+// Invalid token:
+{
+  "status": "fail",
+  "message": "Invalid token. Please log in again!"
+}
+
+// Expired token:
+{
+  "status": "fail",
+  "message": "Your token has expired! Please log in again."
+}
+```
+
+---
+
 ## ✅ Validation Rules
 
 ### User Registration
@@ -286,41 +414,118 @@ Revokes the refresh token.
 
 Use **Postman** for testing.
 
-### Testing Validation
+### Testing Error Scenarios
 
-**❌ Test Invalid Email:**
+**❌ Duplicate Email (409):**
 ```json
 POST /auth/register
 {
   "name": "John",
-  "email": "invalid-email",
+  "email": "existing@test.com",
   "password": "pass123"
 }
-```
 
-Expected: 400 Bad Request with validation error
-
-**❌ Test Short Password:**
-```json
+Response:
 {
-  "name": "John",
-  "email": "john@test.com",
-  "password": "123"
+  "status": "fail",
+  "message": "email 'existing@test.com' already exists. Please use another value."
 }
 ```
 
-Expected: 400 Bad Request with password validation errors
-
-**✅ Test Valid Registration:**
+**❌ Invalid Credentials (401):**
 ```json
+POST /auth/login
+{
+  "email": "john@test.com",
+  "password": "wrongpassword"
+}
+
+Response:
+{
+  "status": "fail",
+  "message": "Invalid email or password"
+}
+```
+
+**❌ No Authentication Token (401):**
+```http
+POST /posts
+{
+  "title": "My Post",
+  "content": "Content"
+}
+
+Response:
+{
+  "status": "fail",
+  "message": "No token provided. Please log in."
+}
+```
+
+**❌ Invalid JWT Token (401):**
+```http
+GET /posts/my-posts
+Authorization: Bearer faketoken123
+
+Response:
+{
+  "status": "fail",
+  "message": "Invalid token. Please log in again!"
+}
+```
+
+**❌ Post Not Found (404):**
+```http
+DELETE /posts/507f1f77bcf86cd799439011
+Authorization: Bearer <valid_token>
+
+Response:
+{
+  "status": "fail",
+  "message": "Post not found"
+}
+```
+
+**❌ Not Authorized (403):**
+```http
+DELETE /posts/<someone_elses_post_id>
+Authorization: Bearer <your_token>
+
+Response:
+{
+  "status": "fail",
+  "message": "Not allowed"
+}
+```
+
+**❌ Invalid Route (404):**
+```http
+GET /invalid/endpoint
+
+Response:
+{
+  "status": "fail",
+  "message": "Can't find /invalid/endpoint on this server!"
+}
+```
+
+### Testing Valid Requests
+
+**✅ Valid Registration:**
+```json
+POST /auth/register
 {
   "name": "John Doe",
   "email": "john@test.com",
   "password": "password123"
 }
-```
 
-Expected: 201 Created with user data
+Response (201):
+{
+  "message": "User registered successfully",
+  "user": { ... }
+}
+```
 
 ### Testing Protected Routes
 
@@ -339,17 +544,25 @@ Authorization: Bearer <access_token>
 * Secure session handling with refresh token rotation logic
 * MongoDB schema design and ObjectId relationships
 * Ownership-based authorization
-* **Input validation with express-validator** ⭐ NEW
-* **Creating reusable validation middleware** ⭐ NEW
-* **Proper error handling for invalid inputs** ⭐ NEW
+* **Input validation with express-validator**
+* **Creating reusable validation middleware**
+* **Centralized error handling architecture** ⭐ NEW
+* **Custom error classes in JavaScript** ⭐ NEW
+* **Transforming technical errors into user-friendly messages** ⭐ NEW
+* **Operational vs programming errors** ⭐ NEW
+* **HTTP status codes and when to use each** ⭐ NEW
+* **Development vs production error responses** ⭐ NEW
+* **MongoDB-specific error handling** ⭐ NEW
+* **JWT error handling** ⭐ NEW
 * Debugging MongoDB indexes and Express routing issues
 * Structuring scalable backend applications
+* MVC architecture pattern
 
 ---
 
 ## 🔜 Future Enhancements
 
-- [ ] Centralized error handling middleware
+- [x] Centralized error handling middleware ✅
 - [ ] Async error wrapper to reduce try-catch blocks
 - [ ] Rate limiting for API endpoints
 - [ ] Email verification for new users
@@ -375,6 +588,15 @@ Second Year CSE Student | Learning Backend Development
 
 Connect with me:
 - GitHub: [@hana-20092006](https://github.com/hana-20092006)
+
+---
+
+## 📚 Learning Journey
+
+This project is part of my **Week 1-4** learning from a structured 3-month backend development roadmap:
+- ✅ Week 1: JWT Authentication & Security
+- ✅ Week 2 (Day 1-4): Input Validation & Centralized Error Handling
+- ⏳ Week 2 (Day 5-6): Async Error Handling (In Progress)
 
 ---
 
